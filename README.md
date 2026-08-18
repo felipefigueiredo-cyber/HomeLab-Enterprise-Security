@@ -48,7 +48,7 @@ Para garantir estabilidade em um computador hospedeiro com **16 GB de RAM**, os 
     *   *Função:* Servidor de autenticação corporativo (802.1X). Contém as contas de rede autorizadas. Roda um **Wazuh Agent** ativo para coletar logs.
 *   **VM 03 - Wazuh SIEM** | 2 vCPUs | 4.0 GB RAM | SO: Ubuntu Server LTS
     *   *Função:* Centralizador e correlacionador de eventos de segurança (SOC). Recebe syslogs do pfSense e logs dos agentes via criptografia.
-*   **VM 04 - Lubuntu PAW (Estação de Trabalho do Administrador)** | 1 vCPU | 1.0 GB RAM | SO: Lubuntu Desktop
+*   **VM 04 - Lubuntu PAW (Estação de Trabalho do Administrador)** | 1 vCPU | 2.0 GB RAM | SO: Lubuntu Desktop
     *   *Função:* Máquina restrita utilizada exclusivamente pelo administrador (Felipe) para configurar o pfSense e o Wazuh. Fica isolada na VLAN 99. Roda um **Wazuh Agent** ativo.
 *   **VM 05 - Lubuntu Cliente (João - O Funcionário)** | 1 vCPU | 1.0 GB RAM | SO: Lubuntu Desktop
     *   *Função:* Máquina de testes usada para simular o comportamento de um funcionário comum tentando navegar na internet. Fica na VLAN 10.
@@ -70,5 +70,5 @@ Este projeto implementa múltiplos controles de segurança alinhados às melhore
 
 | Versão | Data | Alteração Realizada | Autor |
 | :--- | :--- | :--- | :--- |
-| v1.0 | 25/01/2025 | Planejamento inicial da arquitetura simplificada (LAN/MGMT) e aprovação do escopo operacional. | Felipe O. Figueiredo |
+| v1.0 | 03/08/2026 | Planejamento inicial da arquitetura simplificada (LAN/MGMT) e aprovação do escopo operacional. | Felipe O. Figueiredo |
 | v1.1 | 13/08/2026 | Implantação concluída, correção do bug de estouro de disco, ativação do RADIUS e logs do SIEM validados. | Felipe O. Figueiredo |
