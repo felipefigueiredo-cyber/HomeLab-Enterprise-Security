@@ -1,5 +1,3 @@
-# HomeLab-Enterprise-Security
-Laboratório prático de segurança de rede com foco em segmentação (pfSense), autenticação centralizada (FreeRADIUS) e monitoramento de segurança/SIEM (Wazuh).
 # 🛡️ Enterprise Security Sandbox: Segmentação por VLANs, Controle 802.1X & SIEM
 
 ![Status](https://img.shields.io/badge/Status-Conclu%C3%ADdo-green?style=for-the-badge)
@@ -26,7 +24,7 @@ Para tornar este laboratório compreensível para qualquer público, imagine que
 
 O diagrama abaixo ilustra o fluxo de dados e o isolamento lógico das redes. O firewall pfSense atua como o único gateway conectando todos os segmentos:
 
-![Arquitetura MZSD](arquitetura_mzsd.png)
+![Arquitetura MZSD](./arquitetura_mzsd.jpg)
 
 ### Matriz de Segmentação de Redes (VLANs no VirtualBox)
 
