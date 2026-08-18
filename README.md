@@ -24,7 +24,7 @@ Para tornar este laboratório compreensível para qualquer público, imagine que
 
 O diagrama abaixo ilustra o fluxo de dados e o isolamento lógico das redes. O firewall pfSense atua como o único gateway conectando todos os segmentos:
 
-![Arquitetura MZSD](./arquitetura_mzsd.jpg)
+![Arquitetura MZSD](./arquitetura_mzsd.png)
 
 ### Matriz de Segmentação de Redes (VLANs no VirtualBox)
 
