@@ -8,7 +8,7 @@ Este documento detalha as especificações técnicas de redes, endereçamentos I
 
 A arquitetura foi implementada no hipervisor VirtualBox utilizando o conceito de **Redes Internas** para simular switches lógicos isolados por VLANs. O firewall pfSense atua como o único roteador de trânsito (Gateway) na topologia *Router-on-a-Stick*.
 
-![Arquitetura MZSD](arquitetura_mzsd.png)
+![Arquitetura MZSD](./assets/arquitetura_mzsd.png)
 
 ---
 
