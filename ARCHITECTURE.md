@@ -30,17 +30,18 @@ Para garantir a identificação estrita dos ativos da rede, a infraestrutura foi
 
 ## 🔒 3. Matriz de Portas do Firewall & Fluxo de Dados
 
-O pfSense aplica o princípio de **Bloqueio por Padrão (Default Deny)**. A comunicação entre os segmentos de rede só é permitida através dos guichês (portas) e protocolos de segurança explicitados abaixo:
+O pfSense aplica o princípio de **Bloqueio por Padrão (Default Deny)**. A comunicação entre os segmentos de rede só é permitida através das portas, protocolos e origens estritamente especificadas abaixo:
 
 | Sentido do Fluxo (Origem -> Destino) | Protocolo | Porta de Destino | Serviço | Objetivo de Segurança |
 | :--- | :--- | :--- | :--- | :--- |
 | **VLAN 10 (LAN) -> pfSense LAN** | UDP | `1812` / `1813` | RADIUS Auth / Acct | Autenticar o computador do funcionário via Captive Portal. |
-| **VLAN 99 (MGMT) -> pfSense MGMT**| TCP | `443` (HTTPS) | WebConfigurator | Permitir que **apenas** a PAW administre o firewall via navegador. |
+| **PAW (IP 192.168.99.100) -> pfSense MGMT**| TCP | `443` (HTTPS) | WebConfigurator | **Privilégio Mínimo:** Permitir que APENAS o IP estático da PAW administre o firewall via navegador. |
 | **VM 02 & VM 03 -> pfSense MGMT** | UDP | `123` | NTP (Tempo) | Sincronizar os relógios dos servidores de forma segura com o NTP mestre do pfSense. |
 | **VM 02 & VM 04 -> Wazuh SIEM** | TCP | `1514` / `1515` | Wazuh Agent API | Enviar logs criptografados de auditoria local para a central do SOC. |
 | **pfSense (VM 01) -> Wazuh SIEM** | UDP | `514` | Syslog Remoto | Enviar logs de firewall, bloqueios e eventos do pfSense para o SIEM. |
 | **VLAN 10 (LAN) -> Internet** | TCP/UDP| `80` (HTTP) / `443` (HTTPS)| Navegação Web | Permitir saída controlada para a internet (após autenticação no RADIUS). |
 | **VLAN 99 (MGMT) -> Internet** | *Bloqueado*| *Bloqueado* | *Bloqueado* | **Totalmente bloqueado por padrão (Hardening).** Os servidores e a PAW não possuem saída para a rede externa. |
+| **VLAN 10 (LAN) -> pfSense LAN** | TCP | `443` (HTTPS) | WebConfigurator | **Bloqueado por Padrão (Hardening):** Impede que usuários comuns da VLAN 10 tentem acessar a tela de login do pfSense. |
 
 ---
 
