@@ -24,7 +24,7 @@ Para tornar este laboratório compreensível para qualquer público, imagine que
 
 O diagrama abaixo ilustra o fluxo de dados e o isolamento lógico das redes. O firewall pfSense atua como o único gateway conectando todos os segmentos:
 
-![Arquitetura MZSD](./arquitetura_mzsd.png)
+![Arquitetura MZSD](./assets/arquitetura_mzsd.png)
 
 ### Matriz de Segmentação de Redes (VLANs no VirtualBox)
 
@@ -69,17 +69,17 @@ Abaixo estão os registros visuais que comprovam a integridade e o funcionamento
 ### A. Orquestração do Laboratório (Hypervisor VirtualBox)
 Esta imagem comprova a gerência de virtualização do laboratório, rodando simultaneamente 5 máquinas virtuais de forma estável e otimizada no notebook pessoal:
 
-![Infraestrutura VirtualBox](print_virtualbox.png)
+![Infraestrutura VirtualBox](./assets/print_virtualbox.png)
 
 ### B. Painel de Controle de Redes (pfSense Firewall)
 Esta imagem mostra o painel do pfSense operacional na PAW, com as três interfaces (WAN, LAN e MGMT) perfeitamente sincronizadas por NTP local e com IPs ativos:
 
-![Dashboard do pfSense](print_pfsense.png)
+![Dashboard do pfSense](./assets/print_pfsense.png)
 
 ### C. Monitoramento de Logs no SOC (Wazuh SIEM)
 Esta imagem da central do SOC (Wazuh) comprova a coleta e a indexação de mais de 190 eventos reais de segurança de rede, incluindo as auditorias do FreeRADIUS e as elevações de privilégio administrativo:
 
-![SOC Wazuh Dashboard](print_wazuh.png)
+![SOC Wazuh Dashboard](./assets/print_wazuh.png)
 
 ---
 
