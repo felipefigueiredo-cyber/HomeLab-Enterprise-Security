@@ -1,12 +1,14 @@
 # 🗺️ Arquitetura de Redes MZSD (Multi-Zone Segmented Defense)
 
-Este documento detalha as especificações técnicas de redes, endereçamentos IP, regras de firewall e fluxos de dados de segurança implementados no projeto **Enterprise Security Sandbox**.
+Este documento detalha as especificações técnicas de redes, mapeamentos de endereçamento IP, regras de controle de acesso (Firewall) e fluxos lógicos de dados implementados no projeto *Enterprise Security Sandbox*.
 
 ---
 
 ## 1. Topologia de Rede Virtualizada
 
-A arquitetura foi implementada no hipervisor VirtualBox utilizando o conceito de **Redes Internas** para simular switches lógicos isolados por VLANs. O firewall pfSense atua como o único roteador de trânsito (Gateway) na topologia *Router-on-a-Stick*.
+A arquitetura foi totalmente implementada dentro do hipervisor VirtualBox, utilizando o conceito de **Redes Internas** (Internal Networks) para simular switches lógicos isolados por VLANs. 
+
+O firewall pfSense atua como o único roteador de trânsito (Gateway padrão) para todos os segmentos, implementando uma topologia robusta e isolada de tráfego inter-VLAN.
 
 ![Arquitetura MZSD](./assets/arquitetura_mzsd.png)
 
@@ -14,40 +16,44 @@ A arquitetura foi implementada no hipervisor VirtualBox utilizando o conceito de
 
 ## 2. Matriz de Endereçamento IP
 
-Para garantir a identificação estrita dos ativos da rede, a infraestrutura foi mapeada conforme a tabela abaixo:
+Para garantir a identificação e o rastreamento estrito dos ativos de rede, a infraestrutura foi mapeada conforme a distribuição abaixo:
 
 | Dispositivo / VM | Interface de Rede | Tipo de IP | Endereço IP | Máscara de Rede | Gateway Padrão |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **VM 01 - pfSense Firewall** | WAN | Dinâmico (DHCP) | *IP do Host (NAT)* | `255.255.255.0` | IP do Host |
-| **VM 01 - pfSense Firewall** | LAN (VLAN 10) | Estático | **`192.168.10.1`** | `255.255.255.0` (/24) | *Não aplicável* |
-| **VM 01 - pfSense Firewall** | MGMT (VLAN 99) | Estático | **`192.168.99.1`** | `255.255.255.0` (/24) | *Não aplicável* |
-| **VM 02 - FreeRADIUS** | LAN (VLAN 99) | Estático | **`192.168.99.10`** | `255.255.255.0` (/24) | `192.168.99.1` |
-| **VM 03 - Wazuh SIEM** | LAN (VLAN 99) | Estático | **`192.168.99.20`** | `255.255.255.0` (/24) | `192.168.99.1` |
-| **VM 04 - Lubuntu PAW** | LAN (VLAN 99) | Estático | **`192.168.99.100`**| `255.255.255.0` (/24) | `192.168.99.1` |
-| **VM 05 - Lubuntu Cliente** | LAN (VLAN 10) | Dinâmico (DHCP)| **`192.168.10.102`**| `255.255.255.0` (/24) | `192.168.10.1` |
+| **VM 01 - pfSense Firewall** | WAN (`em0`) | Dinâmico (DHCP) | IP do Host (NAT) | `255.255.255.0` | IP do Host |
+| **VM 01 - pfSense Firewall** | LAN (`em2` / VLAN 10)| Estático | `192.168.10.1` | `255.255.255.0` (/24) | Não aplicável |
+| **VM 01 - pfSense Firewall** | MGMT (`em1` / VLAN 99)| Estático | `192.168.99.1` | `255.255.255.0` (/24) | Não aplicável |
+| **VM 02 - FreeRADIUS** | MGMT (VLAN 99) | Estático | `192.168.99.10` | `255.255.255.0` (/24) | `192.168.99.1` |
+| **VM 03 - Wazuh SIEM** | MGMT (VLAN 99) | Estático | `192.168.99.20` | `255.255.255.0` (/24) | `192.168.99.1` |
+| **VM 04 - Lubuntu PAW** | MGMT (VLAN 99) | Estático | `192.168.99.100` | `255.255.255.0` (/24) | `192.168.99.1` |
+| **VM 05 - Lubuntu Cliente** | LAN (VLAN 10) | Dinâmico (DHCP) | `192.168.10.102` | `255.255.255.0` (/24) | `192.168.10.1` |
 
 ---
 
 ## 🔒 3. Matriz de Portas do Firewall & Fluxo de Dados
 
-O pfSense aplica o princípio de **Bloqueio por Padrão (Default Deny)**. A comunicação entre os segmentos de rede só é permitida através das portas, protocolos e origens estritamente especificadas abaixo:
+O pfSense aplica o princípio rígido de **Bloqueio por Padrão** (*Default Deny*). Toda a comunicação entre segmentos de rede só é permitida através das portas, protocolos e origens estritamente especificadas na matriz de segurança abaixo:
 
 | Sentido do Fluxo (Origem -> Destino) | Protocolo | Porta de Destino | Serviço | Objetivo de Segurança |
 | :--- | :--- | :--- | :--- | :--- |
-| **VLAN 10 (LAN) -> pfSense LAN** | UDP | `1812` / `1813` | RADIUS Auth / Acct | Autenticar o computador do funcionário via Captive Portal. |
-| **PAW (IP 192.168.99.100) -> pfSense MGMT**| TCP | `443` (HTTPS) | WebConfigurator | **Privilégio Mínimo:** Permitir que APENAS o IP estático da PAW administre o firewall via navegador. |
-| **VM 02 & VM 03 -> pfSense MGMT** | UDP | `123` | NTP (Tempo) | Sincronizar os relógios dos servidores de forma segura com o NTP mestre do pfSense. |
-| **VM 02 & VM 04 -> Wazuh SIEM** | TCP | `1514` / `1515` | Wazuh Agent API | Enviar logs criptografados de auditoria local para a central do SOC. |
-| **pfSense (VM 01) -> Wazuh SIEM** | UDP | `514` | Syslog Remoto | Enviar logs de firewall, bloqueios e eventos do pfSense para o SIEM. |
-| **VLAN 10 (LAN) -> Internet** | TCP/UDP| `80` (HTTP) / `443` (HTTPS)| Navegação Web | Permitir saída controlada para a internet (após autenticação no RADIUS). |
-| **VLAN 99 (MGMT) -> Internet** | *Bloqueado*| *Bloqueado* | *Bloqueado* | **Totalmente bloqueado por padrão (Hardening).** Os servidores e a PAW não possuem saída para a rede externa. |
-| **VLAN 10 (LAN) -> pfSense LAN** | TCP | `443` (HTTPS) | WebConfigurator | **Bloqueado por Padrão (Hardening):** Impede que usuários comuns da VLAN 10 tentem acessar a tela de login do pfSense. |
+| **VLAN 10 (LAN) -> pfSense LAN** | TCP | `8002` | Captive Portal | Usuário comum é redirecionado para a página de autenticação corporativa. |
+| **pfSense (VM 01) -> VM 02 (FreeRADIUS)**| UDP | `1812` / `1813` | RADIUS Auth / Acct | O gateway consulta as credenciais do Captive Portal e audita as sessões ativas. |
+| **VM 04 (PAW) -> pfSense MGMT** | TCP | `443` (HTTPS) | WebConfigurator | **Privilégio Mínimo:** Apenas o IP estático da PAW possui permissão para administrar o firewall via navegador. |
+| **VLAN 99 (MGMT) -> pfSense MGMT** | UDP | `123` | NTP (Tempo) | Sincronismo de relógios dos servidores com o servidor NTP mestre local do pfSense. |
+| **VM 02 & VM 04 -> VM 03 (Wazuh SIEM)**| TCP | `1514` / `1515` | Wazuh Agent Connection | Envio seguro e criptografado de logs de eventos e alertas para o centralizador do SOC. |
+| **pfSense (VM 01) -> VM 03 (Wazuh SIEM)**| UDP | `514` | Syslog Remoto | Exportação de logs de tráfego, conexões e bloqueios do firewall para correlação no SIEM. |
+| **VLAN 10 (LAN) -> Internet (WAN)** | TCP/UDP | `80` (HTTP) / `443` (HTTPS) | Navegação Web | Permissão de tráfego de saída controlado para a internet (liberado apenas após login). |
+| **VLAN 99 (MGMT) -> Internet (WAN)** | Bloqueado | Bloqueado | Bloqueado | **Hardening:** Totalmente bloqueado. Servidores críticos e a máquina administrativa não possuem saída para a internet. |
+| **VLAN 10 (LAN) -> pfSense LAN** | TCP | `443` (HTTPS) | WebConfigurator | **Hardening:** Impede terminantemente que usuários comuns acessem ou façam força bruta na tela de gerência do pfSense. |
 
 ---
 
 ## 🛡️ 4. Isolamento Lógico (Regras de Bloqueio Ativas)
 
-Para conter possíveis ameaças e evitar movimentos laterais na rede (Defesa em Profundidade), as seguintes regras de descarte de pacotes estão ativas:
-*   **Bloqueio Total VLAN 10 -> VLAN 99:** Qualquer pacote de dados vindo da rede de usuários (VLAN 10) tentando acessar qualquer IP da rede de gerência (VLAN 99) é sumariamente descartado pelo pfSense.
-*   **Bloqueio de Gerência WAN & VLAN 99:**(Acesso de Confiança Zero):
-O acesso à interface web administrativa do pfSense (WebConfigurator) através do IP de internet (WAN) é totalmente bloqueado por padrão. Além disso, aplicando o princípio de privilégio mínimo em nível de host, o gerenciamento local na interface segura MGMT (VLAN 99) foi estritamente restrito para aceitar conexões vindas exclusivamente do IP estático 192.168.99.100 (VM 04 - Lubuntu PAW). Qualquer outro dispositivo ou servidor conectado na rede MGMT (como os servidores FreeRADIUS e Wazuh) é sumariamente bloqueado de tentar acessar as portas de gerência (443/HTTPS e 22/SSH) do pfSense, contendo movimentos laterais em caso de invasão.
+Para conter possíveis tentativas de invasão e evitar o movimento lateral na rede (seguindo os conceitos de *Defesa em Profundidade*), as seguintes políticas ativas foram implementadas no firewall:
+
+1.  **Bloqueio Total Inter-VLAN (VLAN 10 -> VLAN 99):** Qualquer pacote de dados iniciado na rede de usuários (VLAN 10) que tente alcançar qualquer servidor ou ativo da rede de gerenciamento (VLAN 99) é sumariamente descartado pelo pfSense.
+2.  **Acesso Administrativo de Confiança Zero (Zero Trust):**
+    *   O acesso ao console de gerenciamento web do pfSense (WebConfigurator) a partir da interface WAN (Internet) é totalmente desativado.
+    *   Na rede MGMT (VLAN 99), aplicando o princípio de privilégio mínimo em nível de host, o acesso administrativo (HTTPS na porta `443` e SSH na porta `22`) do pfSense foi restrito para aceitar conexões vindas **exclusivamente** do IP estático `192.168.99.100` (VM 04 - Lubuntu PAW). 
+    *   Qualquer outra máquina conectada à VLAN 99 (incluindo os servidores FreeRADIUS e Wazuh) terá o tráfego bloqueado se tentar interagir com as portas administrativas do gateway, mitigando riscos em caso de comprometimento de um dos servidores.
