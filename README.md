@@ -80,6 +80,7 @@ Esta imagem mostra o painel do pfSense operacional na PAW, com as três interfac
 Esta imagem da central do SOC (Wazuh) comprova a coleta e a indexação de mais de 190 eventos reais de segurança de rede, incluindo as auditorias do FreeRADIUS e as elevações de privilégio administrativo:
 
 ![SOC Wazuh Dashboard](print_wazuh.png)
+
 ---
 
 ## ⏱️ Histórico de Revisões
