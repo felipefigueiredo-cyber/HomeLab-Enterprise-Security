@@ -62,6 +62,24 @@ Este projeto implementa múltiplos controles de segurança alinhados às melhore
 3.  **Controle Baseado em Identidade (RADIUS):** O pfSense bloqueia toda a internet da VLAN 10 por meio de um **Captive Portal**. Quando o computador do João tenta navegar, ele é barrado e obrigado a digitar usuário e senha. O pfSense consulta o FreeRADIUS para validar e liberar a internet.
 4.  **Auditoria Centralizada (SIEM):** O Wazuh recebe e analisa os syslogs do pfSense e os logs do FreeRADIUS em tempo real. Ele detecta de forma automática ações de privilégio administrativas (`sudo to ROOT`) e falhas ou sucessos de login no RADIUS, mapeando os comportamentos diretamente com o framework de ameaças **MITRE ATT&CK** (Técnicas `T1548.003` e `T1078`).
 
+## 📸 5. Demonstração Prática (Provas de Trabalho)
+
+Abaixo estão os registros visuais que comprovam a integridade e o funcionamento de toda a nossa infraestrutura de segurança:
+
+### A. Orquestração do Laboratório (Hypervisor VirtualBox)
+Esta imagem comprova a gerência de virtualização do laboratório, rodando simultaneamente 5 máquinas virtuais de forma estável e otimizada no notebook pessoal:
+
+![Infraestrutura VirtualBox](print_virtualbox.png)
+
+### B. Painel de Controle de Redes (pfSense Firewall)
+Esta imagem mostra o painel do pfSense operacional na PAW, com as três interfaces (WAN, LAN e MGMT) perfeitamente sincronizadas por NTP local e com IPs ativos:
+
+![Dashboard do pfSense](print_pfsense.png)
+
+### C. Monitoramento de Logs no SOC (Wazuh SIEM)
+Esta imagem da central do SOC (Wazuh) comprova a coleta e a indexação de mais de 190 eventos reais de segurança de rede, incluindo as auditorias do FreeRADIUS e as elevações de privilégio administrativo:
+
+![SOC Wazuh Dashboard](print_wazuh.png)
 ---
 
 ## ⏱️ Histórico de Revisões
