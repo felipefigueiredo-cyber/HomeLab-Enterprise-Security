@@ -49,5 +49,5 @@ O pfSense aplica o princípio de **Bloqueio por Padrão (Default Deny)**. A comu
 
 Para conter possíveis ameaças e evitar movimentos laterais na rede (Defesa em Profundidade), as seguintes regras de descarte de pacotes estão ativas:
 *   **Bloqueio Total VLAN 10 -> VLAN 99:** Qualquer pacote de dados vindo da rede de usuários (VLAN 10) tentando acessar qualquer IP da rede de gerência (VLAN 99) é sumariamente descartado pelo pfSense.
-*   **Bloqueio de Gerência WAN & VLAN 99 (Acesso de Confiança Zero):
+*   **Bloqueio de Gerência WAN & VLAN 99:**(Acesso de Confiança Zero):
 O acesso à interface web administrativa do pfSense (WebConfigurator) através do IP de internet (WAN) é totalmente bloqueado por padrão. Além disso, aplicando o princípio de privilégio mínimo em nível de host, o gerenciamento local na interface segura MGMT (VLAN 99) foi estritamente restrito para aceitar conexões vindas exclusivamente do IP estático 192.168.99.100 (VM 04 - Lubuntu PAW). Qualquer outro dispositivo ou servidor conectado na rede MGMT (como os servidores FreeRADIUS e Wazuh) é sumariamente bloqueado de tentar acessar as portas de gerência (443/HTTPS e 22/SSH) do pfSense, contendo movimentos laterais em caso de invasão.
