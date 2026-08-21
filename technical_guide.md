@@ -1,73 +1,80 @@
 # 🛠️ Guia Técnico de Implantação e Resolução de Problemas (Troubleshooting)
 
-Este documento registra de forma técnica, sequencial e detalhada todos os comandos de terminal, configurações de serviços e procedimentos de resolução de problemas executados durante a implantação da infraestrutura de segurança **MZSD**.
+Este documento registra de forma técnica, sequencial e detalhada todos os comandos de terminal, arquivos de configuração de serviços e procedimentos de resolução de incidentes executados durante a implantação da infraestrutura de segurança do laboratório.
 
 ---
 
 ## 1. Comandos de Instalação e Configuração dos Serviços
 
 ### A. VM 02 - Servidor de Autenticação FreeRADIUS
-O servidor foi implantado utilizando o Ubuntu Server LTS (Headless) com o IP estático **`192.168.99.10/24`** configurado manualmente na fase de instalação.
+O servidor de autenticação centralizada foi implantado utilizando o Ubuntu Server LTS (Headless) com o IP estático `192.168.99.10/24` configurado manualmente.
 
 ```bash
-# Atualizar as listas de repositórios do Ubuntu
+# Atualizar as listas de repositórios do sistema operacional
 sudo apt update
 
-# Instalar o FreeRADIUS e as ferramentas de teste de cliente
+# Instalar o FreeRADIUS e utilitários de teste de cliente
 sudo apt install -y freeradius freeradius-utils
 
-# Verificar se o serviço iniciou com sucesso
+# Verificar o status ativo do serviço recém-instalado
 sudo systemctl status freeradius
 ```
 
-*   **Configuração do Cliente (pfSense) em `/etc/freeradius/3.0/clients.conf`:**
+*   **Configuração do Cliente pfSense em `/etc/freeradius/3.0/clients.conf`:**
     ```text
-    client pfsense {
+    client pfsense_gateway {
         ipaddr = 192.168.99.1
-        secret = senha_secreta_pfsense
+        secret = senha_secreta_pfsense_radius
         nas_type = other
     }
     ```
-*   **Cadastro do Usuário de Teste em `/etc/freeradius/3.0/users`:**
+
+*   **Cadastro do Usuário de Teste Ativo em `/etc/freeradius/3.0/users`:**
     ```text
-    joao Cleartext-Password := "joao123"
+    felipe Cleartext-Password := "felipe123"
     ```
-*   **Comando de Reinicialização para Aplicar as Configurações:**
+    *Nota: O usuário joao não foi incluído intencionalmente neste arquivo para permitir o teste de login malsucedido (Access-Reject).*
+
+*   **Comando de Reinicialização para Aplicar as Novas Configurações:**
     ```bash
+    # Reiniciar o serviço para aplicar as novas configurações de clientes e usuários
     sudo systemctl restart freeradius
+
+    # Executar ferramenta de validação local (radtest) simulando uma autenticação
+    radtest felipe felipe123 127.0.0.1 0 testing123
     ```
-*   **Teste de Validação de Autenticação Logins:**
-    ```bash
-    # Comando radtest simulando tentativa de login local
-    radtest joao joao123 127.0.0.1 0 testing123
-    
-    # Retorno de Sucesso Esperado:
-    # Received Access-Accept
+
+*   **Retorno de Sucesso Esperado:**
+    ```text
+    Received Access-Accept Id 0 from 127.0.0.1:1812 to 127.0.0.1:0 length 20
     ```
 
 ---
 
 ### B. VM 03 - Wazuh SIEM
-O servidor foi implantado utilizando o Ubuntu Server LTS (4 GB de RAM e 2 vCPUs) com o IP estático **`192.168.99.20/24`** configurado na fase de instalação.
+O servidor centralizador do SOC foi implantado utilizando o Ubuntu Server LTS (configurado com 4 GB de RAM, 2 vCPUs e IP estático `192.168.99.20/24`).
 
 ```bash
-# Baixar o script oficial do instalador automatizado do Wazuh
+# Realizar o download do script oficial de instalação automatizada do Wazuh
 curl -sO https://packages.wazuh.com/4.8/wazuh-install.sh
 
-# Executar a instalação unificada ignorando a checagem de versão do Ubuntu 26.04
+# Executar a instalação unificada utilizando a tag para ignorar checagem de versão no Ubuntu 26.04
 sudo bash wazuh-install.sh --all-in-one --ignore-check
 ```
 
 ---
 
-### C. Instalação e Ativação do Wazuh Agent (Na PAW e no FreeRADIUS)
-O comando gerado no painel do Wazuh foi executado via SSH nas máquinas para registrá-las na central do SOC:
+### C. Instalação e Ativação do Wazuh Agent (PAW e FreeRADIUS)
+O agente de coleta de logs do Wazuh foi instalado de forma idêntica em ambos os servidores da rede de gerenciamento para encaminhar os eventos ao SIEM:
 
 ```bash
-# Baixar e instalar o pacote do agente apontando para o IP do SIEM (192.168.99.20)
-wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.8.2-1_amd64.deb && sudo WAZUH_MANAGER='192.168.99.20' dpkg -i ./wazuh-agent_4.8.2-1_amd64.deb
+# Baixar o pacote oficial do agente compatível com arquitetura amd64
+wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.8.2-1_amd64.deb
 
-# Recarregar e ativar o serviço do agente no Linux
+# Realizar a instalação apontando o agente para o IP do SIEM Manager (192.168.99.20)
+sudo WAZUH_MANAGER='192.168.99.20' dpkg -i ./wazuh-agent_4.8.2-1_amd64.deb
+
+# Recarregar as definições do systemd e habilitar o início automático do agente
 sudo systemctl daemon-reload
 sudo systemctl enable wazuh-agent
 sudo systemctl start wazuh-agent
@@ -75,30 +82,37 @@ sudo systemctl start wazuh-agent
 
 ---
 
-### D. Configuração do Sincronismo de Tempo Local (NTP)
-Para garantir que as VMs 02 e 03 sincronizem seus relógios de forma segura a partir do pfSense (`192.168.99.1`) via porta `123/UDP`, o serviço de tempo foi configurado em ambas:
+### D. Configuração de Sincronismo de Tempo Local (NTP)
+Para garantir a precisão milimétrica da marcação temporal de todos os logs coletados (correlação forense), configuramos o pfSense (`192.168.99.1`) como o servidor NTP mestre para as VMs 02 e 03:
 
 ```bash
-# Instalar o serviço timesyncd (caso esteja ausente por padrão)
+# Garantir a presença do utilitário padrão systemd-timesyncd
 sudo apt install -y systemd-timesyncd
 
-# Editar o arquivo de configuração
+# Editar o arquivo de configuração do sincronizador
 sudo nano /etc/systemd/timesyncd.conf
 ```
 
-*   **Linha editada e ativada em `/etc/systemd/timesyncd.conf`:**
+*   **Parâmetros de sincronização configurados em `/etc/systemd/timesyncd.conf`:**
     ```text
+    [Time]
     NTP=192.168.99.1
     ```
-*   **Aplicar as configurações e reiniciar o serviço:**
-    ```bash
-    sudo systemctl restart systemd-timesyncd
-    
-    # Comando de verificação de sucesso de contato com o pfSense:
-    sudo systemctl status systemd-timesyncd
-    # Retorno esperado: Contacted time server 192.168.99.1:123 (192.168.99.1)
+
+```bash
+# Aplicar as alterações reiniciando o serviço de sincronismo
+sudo systemctl restart systemd-timesyncd
+
+# Validar se o contato com o pfSense foi estabelecido com sucesso na porta 123/UDP
+sudo systemctl status systemd-timesyncd
+```
+
+*   **Retorno de Sucesso Esperado:**
+    ```text
+    Contacted time server 192.168.99.1:123 (192.168.99.1).
     ```
-*   **Mudar o Fuso Horário das VMs para Cuiabá (Alinhamento de Logs):**
+
+*   **Alinhamento do Fuso Horário Local (Cuiabá):**
     ```bash
     sudo timedatectl set-timezone America/Cuiaba
     ```
@@ -107,43 +121,43 @@ sudo nano /etc/systemd/timesyncd.conf
 
 ## 🛠️ 2. Relatório de Troubleshooting (Resolução de Desafios Técnicos)
 
-Esta seção registra de forma detalhada as falhas encontradas durante a implantação prática e as soluções aplicadas para contorná-las:
+Esta seção documenta os problemas reais identificados durante o processo de implantação prática e as etapas executadas para solucioná-los.
 
 ### Desafio 1: Bloqueio de Borda Wi-Fi do Roteador Físico (pfSense WAN)
-*   **Sintoma:** O pfSense configurado em modo Bridge (conectado à placa Wi-Fi do host) não conseguia se conectar à internet e travava a instalação básica.
-*   **Causa:** O roteador físico residencial bloqueava múltiplos endereços MACs no mesmo canal Wi-Fi por segurança.
-*   **Solução:** Alteração da interface WAN do pfSense (Adaptador 1) para **Modo NAT** no VirtualBox. O Windows Host passou a mascarar o tráfego do pfSense sob o seu próprio IP, liberando a navegação de forma estável.
+*   **Sintoma:** O pfSense configurado em modo Bridge (conectado à placa Wi-Fi física do notebook host) não conseguia obter um endereço IP público estável e perdia a conexão externa.
+*   **Causa:** O roteador físico residencial bloqueava múltiplos endereços MACs de forma simultânea no mesmo canal Wi-Fi por motivos de segurança interna.
+*   **Solução:** Alteração manual da interface WAN do pfSense (Adaptador 1 no VirtualBox) para o Modo NAT. Desta forma, o sistema operacional host passou a mascarar e traduzir todo o tráfego do pfSense sob o seu próprio endereço IP físico, garantindo acesso estável à internet.
 
 ### Desafio 2: Estouro de Armazenamento do Wazuh SIEM (VM 03)
-*   **Sintoma:** A página web do Wazuh Dashboard exibia o erro `Wazuh dashboard server is not ready yet` ou `Something went wrong` e o banco de dados `wazuh-indexer` ficava travado infinitamente no status de `activating (start)`.
-*   **Análise Forense de Logs:** O comando `sudo tail -n 40 /var/log/wazuh-indexer/wazuh-cluster.log` revelou o erro: `java.io.IOException: No space left on device`. O disco virtual de 25 GB original estava com 100% de uso.
-*   **Solução em Três Fases:**
-    1.  *Fase Física:* Desligamento da VM 03 e expansão do arquivo virtual `.vdi` de 25 GB para 60 GB no Gerenciador de Mídias Virtuais do VirtualBox.
-    2.  *Fase Lógica (Linux):* Ligação da VM e execução do comando **`sudo growpart /dev/sda 2`** (para esticar a tabela de partição ativa) e do comando **`sudo resize2fs /dev/sda2`** (para esticar o sistema de arquivos ext4 online). O uso do disco caiu de 100% para **44%**, liberando 32 GB de espaço livre.
-    3.  *Destrancar o Banco:* O estouro de disco havia ativado a trava de segurança de "Somente Leitura" (*Read-Only*) do OpenSearch. O banco de dados foi destrancado enviando um comando direto para a API interna do indexer (aplicando o comando apenas aos índices `wazuh-*` para preservar as pastas de segurança protegidas do sistema):
+*   **Sintoma:** A interface administrativa web do Wazuh Dashboard exibia o erro `Wazuh dashboard server is not ready yet` ou `Something went wrong`, e o banco de dados `wazuh-indexer` ficava travado indefinidamente no status de inicialização (`activating`).
+*   **Análise Forense de Logs:** A análise do arquivo de eventos `/var/log/wazuh-indexer/wazuh-cluster.log` revelou a seguinte exceção: `java.io.IOException: No space left on device`. O disco virtual original de 25 GB havia sido totalmente consumido devido ao volume de logs de boot.
+*   **Solução em 3 Fases:**
+    1.  *Fase Física:* Desligamento seguro da VM e expansão do arquivo de disco virtual (`.vdi`) de 25 GB para 60 GB por meio do Gerenciador de Mídias do VirtualBox.
+    2.  *Fase Lógica (Particionamento Linux):* Inicialização da VM e execução do comando `sudo growpart /dev/sda 2` (para estender a tabela de partição ativa) seguido de `sudo resize2fs /dev/sda2` (para redimensionar o sistema de arquivos ext4 online). O consumo de disco caiu de 100% para 44%, restabelecendo o espaço livre.
+    3.  *Desbloqueio de Escrita no Elasticsearch/Opensearch:* O estouro de disco ativou a trava de segurança nativa do indexador que impede novas gravações (*read-only*). Para remover o bloqueio, enviamos uma chamada REST direta para a API do indexador (aplicada especificamente aos índices do Wazuh):
         ```bash
-        curl -XPUT -k -u admin:[SENHA] "https://localhost:9200/wazuh-*/_settings" -H 'Content-Type: application/json' -d'{"index.blocks.read_only_allow_delete": null}'
+        curl -XPUT -k -u admin:[SENHA_MESTRE] "https://localhost:9200/wazuh-*/_settings" -H 'Content-Type: application/json' -d'{"index.blocks.read_only_allow_delete": null}'
         ```
 
-### Desafio 3: Exclusão Acidental de Arquivos de Sistema durante Cancelamento de Script
-*   **Sintoma:** O comando de alteração de senhas `wazuh-passwords-tool.sh` retornava o erro: `line 67: /var/ossec/bin/wazuh-keystore: No such file or directory` e o serviço `wazuh-manager` não iniciava mais.
-*   **Causa:** Um comando de instalação com a tag `--overwrite` foi executado acidentalmente e interrompido no meio do caminho com a opção "N". Porém, antes da confirmação de parada, o script já havia excluído fisicamente os arquivos binários do `wazuh-manager`.
-*   **Solução:** Executada uma reinstalação completa e limpa do zero usando o comando `--overwrite` completo. Com o disco agora saudável (60 GB), a instalação foi finalizada com sucesso e os arquivos binários foram integralmente restaurados.
+### Desafio 3: Exclusão Acidental de Binários por Interrupção de Script
+*   **Sintoma:** Ao executar a ferramenta de gerência de credenciais, o console retornava `line 67: /var/ossec/bin/wazuh-keystore: No such file or directory` e o serviço `wazuh-manager` falhava ao iniciar.
+*   **Causa:** O script foi interrompido com um cancelamento forçado (`Ctrl + C`) no meio de uma reconfiguração com a flag `--overwrite`. O script realizou a exclusão preventiva dos binários do diretório `/var/ossec/bin/` mas foi cancelado antes de extrair os novos arquivos para o mesmo local.
+*   **Solução:** Executada uma reinstalação completa e limpa do zero usando o comando do instalador com o parâmetro `--overwrite` completo. Com o disco agora saudável (60 GB), a instalação foi finalizada com sucesso e todos os binários foram integralmente restaurados.
 
 ### Desafio 4: Erro de Sincronia de Credenciais do Wazuh Dashboard
-*   **Sintoma:** O painel web do Wazuh exibia o erro `Invalid username or password` ao tentar logar com a senha do admin gerada pelo sistema.
-*   **Causa:** Devido aos travamentos anteriores do disco cheio, o arquivo de senhas do painel web (`/etc/wazuh-dashboard/wazuh.yml`) não foi atualizado de forma síncrona com a nova senha mestre do banco de dados (Indexer).
-*   **Solução:** Executada a ferramenta oficial de redefinição de senhas do Wazuh de forma centralizada para sincronizar todos os arquivos de uma vez só:
+*   **Sintoma:** O login na interface web administrativa retornava constantemente `Invalid username or password` mesmo utilizando a senha mestre de administrador correta.
+*   **Causa:** Devido aos travamentos anteriores por falta de espaço em disco, o arquivo de configuração do painel web (`/etc/wazuh-dashboard/wazuh.yml`) não gravou de forma síncrona a mesma senha de acesso cadastrada no banco de dados (indexer).
+*   **Solução:** Utilização do utilitário oficial de redefinição de senhas do Wazuh para forçar a sincronização de credenciais de todos os módulos de forma unificada:
     ```bash
-    sudo /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -u admin -p 'FelipeSOC123.'
+    sudo /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -u admin -p 'NovaSenhaSegura123!'
     ```
 
 ### Desafio 5: Erro de Sintaxe de Dicionário no FreeRADIUS
-*   **Sintoma:** O comando de reiniciar o serviço `sudo systemctl restart freeradius` falhava em vermelho com o erro `control process exited with error code`.
-*   **Causa:** O interpretador de dicionário do FreeRADIUS é extremamente rígido com sintaxe. No arquivo `/etc/freeradius/3.0/users`, foi digitado `Cleartexte-password` (com um "e" extra no final do Cleartext e com a letra "p" minúscula), o que gerou erro de sintaxe por não existir no dicionário oficial.
-*   **Solução:** Correção da linha de texto para o padrão oficial exigido pelo sistema: `Cleartext-Password` (com o "P" maiúsculo e sem a letra "e" extra), restaurando a inicialização imediata do serviço.
+*   **Sintoma:** O comando `sudo systemctl restart freeradius` falhava com o status de erro `control process exited with error code`.
+*   **Causa:** O arquivo `/etc/freeradius/3.0/users` continha o termo `Cleartexte-password` (com a letra "e" extra ao final de Cleartext e a letra "p" minúscula). O interpretador de dicionário do FreeRADIUS é extremamente rígido com a sintaxe e rejeitou a inicialização devido ao atributo desconhecido.
+*   **Solução:** Correção da linha de texto para o padrão oficial exigido pelo dicionário do sistema: `Cleartext-Password` (com o "P" maiúsculo e sem a letra "e" sobressalente), reestabelecendo a inicialização imediata do serviço.
 
-### Desafio 6: Conflito de Duplo IP na VM do Funcionário (VM 05)
-*   **Sintoma:** O João (VM 05) se autenticava no Captive Portal com sucesso, mas o navegador continuava sem carregar a internet.
-*   **Causa:** A placa de rede `enp0s3` do João estava com dois IPs ativos ao mesmo tempo: o `192.168.10.100` (estático antigo) e o `192.168.10.102` (dinâmico DHCP). O pfSense autorizava o tráfego do IP `.100` no portal, mas a VM tentava navegar usando o IP `.102` que não estava autenticado, gerando o bloqueio pelo firewall.
-*   **Solução:** Deletado o perfil estático antigo na janela gráfica de redes e executado o reinício físico da VM 05. A placa de rede ligou limpa com apenas um único IP dinâmico (`192.168.10.102`) do DHCP, estabelecendo a navegação e a autenticação de forma síncrona e perfeita.
+### Desafio 6: Conflito de Duplo Endereçamento IP na Estação do Usuário (VM 05)
+*   **Sintoma:** O usuário realizava o login com sucesso no Captive Portal do pfSense, mas o navegador continuava sem carregar as páginas externas à rede.
+*   **Causa:** A placa de rede `enp0s3` da VM do usuário possuía dois IPs ativos simultaneamente na mesma interface: o IP estático antigo `192.168.10.100` e o IP dinâmico `192.168.10.102` gerado pelo DHCP. O pfSense autorizava as requisições de saída do IP `.100` que enviou o formulário do portal, mas o sistema operacional da VM tentava encaminhar a navegação subsequente utilizando a rota do IP `.102` (que não estava autorizado), gerando o bloqueio preventivo pelo firewall.
+*   **Solução:** Exclusão manual do perfil estático legado na interface gráfica de conexões de rede do Lubuntu e reinício completo da VM 05. A placa inicializou limpa com apenas o IP dinâmico ativo (`192.168.10.102`), sincronizando de forma perfeita a autenticação e o tráfego de saída do gateway.
