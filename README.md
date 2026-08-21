@@ -89,3 +89,8 @@ Esta imagem da central do SOC (Wazuh) comprova a coleta e a indexação de mais 
 | :--- | :--- | :--- | :--- |
 | v1.0 | 03/08/2026 | Planejamento inicial da arquitetura simplificada (LAN/MGMT) e aprovação do escopo operacional. | Felipe O. Figueiredo |
 | v1.1 | 13/08/2026 | Implantação concluída, correção do bug de estouro de disco, ativação do RADIUS e logs do SIEM validados. | Felipe O. Figueiredo |
+
+## ⚙️ Como Navegar neste Repositório
+
+*   [**Diagrama de Redes & Matriz de Portas (ARCHITECTURE.md)**](./ARCHITECTURE.md) - Detalhamento da topologia, distribuição de IPs e regras ativas de firewall.
+*   [**Guia Técnico de Implantação & Troubleshooting (technical_guide.md)**](./technical_guide.md) - Manual técnico com todos os comandos Linux, configurações do RADIUS e soluções para os 6 desafios encontrados.
